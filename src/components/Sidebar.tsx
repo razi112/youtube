@@ -48,7 +48,7 @@ const exploreItems = [
 const Sidebar = ({ isOpen }: SidebarProps) => {
   if (!isOpen) {
     return (
-      <aside className="fixed left-0 top-14 bottom-0 w-[72px] bg-background overflow-y-auto scrollbar-hide py-2">
+      <aside className="fixed left-0 top-14 bottom-0 w-[72px] bg-background overflow-y-auto scrollbar-hide py-2 hidden md:block">
         {mainItems.map((item) => (
           <div
             key={item.label}
@@ -65,7 +65,7 @@ const Sidebar = ({ isOpen }: SidebarProps) => {
   }
 
   return (
-    <aside className="fixed left-0 top-14 bottom-0 w-60 bg-background overflow-y-auto scrollbar-hide py-3 px-3">
+    <aside className="fixed left-0 top-14 bottom-0 w-60 bg-background overflow-y-auto scrollbar-hide py-3 px-3 hidden md:block">
       {/* Main */}
       <div className="mb-3">
         {mainItems.map((item) => (

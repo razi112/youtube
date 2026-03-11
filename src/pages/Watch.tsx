@@ -53,7 +53,7 @@ const Watch = () => {
     <div className="min-h-screen bg-background">
       <Header onMenuClick={() => {}} searchQuery={searchQuery} onSearchChange={handleSearch} />
 
-      <main className="pt-14 px-6 lg:px-24 flex flex-col lg:flex-row gap-6 py-6">
+      <main className="pt-14 px-3 md:px-6 lg:px-24 flex flex-col lg:flex-row gap-6 py-6 pb-20 md:pb-6">
         {/* Main content */}
         <div className="flex-1 min-w-0">
           {/* Embedded Player */}
@@ -70,9 +70,9 @@ const Watch = () => {
           {/* Video Info */}
           {video && (
             <div className="mt-3">
-              <h1 className="text-xl font-semibold leading-7">{video.title}</h1>
+              <h1 className="text-base md:text-xl font-semibold leading-6 md:leading-7">{video.title}</h1>
 
-              <div className="flex flex-wrap items-center justify-between mt-3 gap-3">
+              <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center justify-between mt-3 gap-3">
                 {/* Channel info */}
                 <div className="flex items-center gap-3">
                   <Avatar className="h-10 w-10">
@@ -89,9 +89,9 @@ const Watch = () => {
                 </div>
 
                 {/* Action buttons */}
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center bg-secondary rounded-full">
-                    <Button variant="ghost" size="sm" className="rounded-l-full gap-1.5 px-4">
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide w-full sm:w-auto">
+                  <div className="flex items-center bg-secondary rounded-full flex-shrink-0">
+                    <Button variant="ghost" size="sm" className="rounded-l-full gap-1.5 px-3 md:px-4">
                       <ThumbsUp className="h-4 w-4" />
                       <span className="text-sm">{video.views}</span>
                     </Button>
@@ -100,15 +100,15 @@ const Watch = () => {
                       <ThumbsDown className="h-4 w-4" />
                     </Button>
                   </div>
-                  <Button variant="secondary" size="sm" className="rounded-full gap-1.5 px-4">
+                  <Button variant="secondary" size="sm" className="rounded-full gap-1.5 px-3 md:px-4 flex-shrink-0">
                     <Share2 className="h-4 w-4" />
-                    Share
+                    <span className="hidden sm:inline">Share</span>
                   </Button>
-                  <Button variant="secondary" size="sm" className="rounded-full gap-1.5 px-4">
+                  <Button variant="secondary" size="sm" className="rounded-full gap-1.5 px-3 md:px-4 flex-shrink-0">
                     <Download className="h-4 w-4" />
-                    Download
+                    <span className="hidden sm:inline">Download</span>
                   </Button>
-                  <Button variant="secondary" size="icon" className="rounded-full h-9 w-9">
+                  <Button variant="secondary" size="icon" className="rounded-full h-9 w-9 flex-shrink-0">
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </div>
