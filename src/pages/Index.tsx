@@ -133,6 +133,7 @@ const Index = () => {
           )}
         </div>
       </main>
+      <BottomNav />
     </div>
   );
 };

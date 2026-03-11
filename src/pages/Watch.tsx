@@ -89,9 +89,9 @@ const Watch = () => {
                 </div>
 
                 {/* Action buttons */}
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center bg-secondary rounded-full">
-                    <Button variant="ghost" size="sm" className="rounded-l-full gap-1.5 px-4">
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide w-full sm:w-auto">
+                  <div className="flex items-center bg-secondary rounded-full flex-shrink-0">
+                    <Button variant="ghost" size="sm" className="rounded-l-full gap-1.5 px-3 md:px-4">
                       <ThumbsUp className="h-4 w-4" />
                       <span className="text-sm">{video.views}</span>
                     </Button>
@@ -100,15 +100,15 @@ const Watch = () => {
                       <ThumbsDown className="h-4 w-4" />
                     </Button>
                   </div>
-                  <Button variant="secondary" size="sm" className="rounded-full gap-1.5 px-4">
+                  <Button variant="secondary" size="sm" className="rounded-full gap-1.5 px-3 md:px-4 flex-shrink-0">
                     <Share2 className="h-4 w-4" />
-                    Share
+                    <span className="hidden sm:inline">Share</span>
                   </Button>
-                  <Button variant="secondary" size="sm" className="rounded-full gap-1.5 px-4">
+                  <Button variant="secondary" size="sm" className="rounded-full gap-1.5 px-3 md:px-4 flex-shrink-0">
                     <Download className="h-4 w-4" />
-                    Download
+                    <span className="hidden sm:inline">Download</span>
                   </Button>
-                  <Button variant="secondary" size="icon" className="rounded-full h-9 w-9">
+                  <Button variant="secondary" size="icon" className="rounded-full h-9 w-9 flex-shrink-0">
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </div>
