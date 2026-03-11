@@ -53,7 +53,7 @@ const Watch = () => {
     <div className="min-h-screen bg-background">
       <Header onMenuClick={() => {}} searchQuery={searchQuery} onSearchChange={handleSearch} />
 
-      <main className="pt-14 px-6 lg:px-24 flex flex-col lg:flex-row gap-6 py-6">
+      <main className="pt-14 px-3 md:px-6 lg:px-24 flex flex-col lg:flex-row gap-6 py-6 pb-20 md:pb-6">
         {/* Main content */}
         <div className="flex-1 min-w-0">
           {/* Embedded Player */}
