@@ -112,10 +112,10 @@ const Index = () => {
       
       <main
         className={`pt-14 transition-all duration-200 ${
-          sidebarOpen ? "ml-60" : "ml-[72px]"
-        }`}
+          sidebarOpen ? "md:ml-60" : "md:ml-[72px]"
+        } ml-0 pb-16 md:pb-0`}
       >
-        <div className="px-6">
+        <div className="px-3 md:px-6">
           <CategoryChips />
           {loading ? (
             <div className="flex items-center justify-center py-20">
