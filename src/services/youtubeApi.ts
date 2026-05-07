@@ -1,246 +1,327 @@
-import { YOUTUBE_API_KEY, YOUTUBE_API_BASE_URL } from "@/config/youtube";
+import { YOUTUBE_API_BASE_URL, getActiveKey, rotateKey, totalKeys } from "@/config/youtube";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface YouTubeVideo {
   id: string;
   thumbnail: string;
   title: string;
-  channel: {
-    id: string;
-    name: string;
-    avatar: string;
-  };
+  channel: { id: string; name: string; avatar: string };
   views: string;
   uploadedAt: string;
   duration: string;
+  durationSeconds?: number;
 }
 
 export interface PaginatedResult {
   videos: YouTubeVideo[];
   nextPageToken?: string;
+  error?: string;
 }
 
 interface YouTubeSearchItem {
   id: { videoId: string };
   snippet: {
-    title: string;
-    channelId: string;
-    channelTitle: string;
-    publishedAt: string;
-    thumbnails: {
-      high: { url: string };
-    };
+    title: string; channelId: string; channelTitle: string; publishedAt: string;
+    thumbnails: { high?: { url: string }; medium?: { url: string }; default?: { url: string } };
   };
 }
 
-interface YouTubeVideoDetails {
-  id: string;
-  statistics: {
-    viewCount: string;
-  };
-  contentDetails: {
-    duration: string;
-  };
-}
-
-interface YouTubeChannelDetails {
+interface YouTubeVideoItem {
   id: string;
   snippet: {
-    thumbnails: {
-      default: { url: string };
-    };
+    title: string; channelId: string; channelTitle: string; publishedAt: string;
+    thumbnails: { high?: { url: string }; medium?: { url: string }; default?: { url: string } };
   };
+  statistics?: { viewCount?: string };
+  contentDetails?: { duration: string };
 }
 
-const formatViewCount = (count: string | undefined): string => {
+interface YouTubeChannelItem {
+  id: string;
+  snippet: { thumbnails: { default: { url: string } } };
+}
+
+// ─── Formatters ───────────────────────────────────────────────────────────────
+
+export const formatViewCount = (count?: string): string => {
   if (!count) return "0";
-  const num = parseInt(count, 10);
-  if (isNaN(num)) return "0";
-  if (num >= 1000000) {
-    return `${(num / 1000000).toFixed(1)}M`;
-  } else if (num >= 1000) {
-    return `${(num / 1000).toFixed(0)}K`;
-  }
-  return count;
+  const n = parseInt(count, 10);
+  if (isNaN(n)) return "0";
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+  return n.toString();
 };
 
-const formatDuration = (duration: string): string => {
-  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-  if (!match) return "0:00";
-  
-  const hours = match[1] ? parseInt(match[1], 10) : 0;
-  const minutes = match[2] ? parseInt(match[2], 10) : 0;
-  const seconds = match[3] ? parseInt(match[3], 10) : 0;
-  
-  if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-  }
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+export const parseDurationSeconds = (d: string): number => {
+  const m = d.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!m) return 0;
+  return parseInt(m[1] || "0") * 3600 + parseInt(m[2] || "0") * 60 + parseInt(m[3] || "0");
 };
 
-const formatUploadDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "1 day ago";
-  if (diffDays < 7) return `${diffDays} days ago`;
-  if (diffDays < 14) return "1 week ago";
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-  if (diffDays < 60) return "1 month ago";
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-  return `${Math.floor(diffDays / 365)} years ago`;
+export const formatDuration = (d: string): string => {
+  const t = parseDurationSeconds(d);
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  return `${m}:${String(s).padStart(2, "0")}`;
 };
+
+export const formatUploadDate = (ds: string): string => {
+  const d = Math.floor((Date.now() - new Date(ds).getTime()) / 86_400_000);
+  if (d === 0) return "Today";
+  if (d === 1) return "1 day ago";
+  if (d < 7) return `${d} days ago`;
+  if (d < 14) return "1 week ago";
+  if (d < 30) return `${Math.floor(d / 7)} weeks ago`;
+  if (d < 60) return "1 month ago";
+  if (d < 365) return `${Math.floor(d / 30)} months ago`;
+  return `${Math.floor(d / 365)} years ago`;
+};
+
+const bestThumb = (
+  t: { high?: { url: string }; medium?: { url: string }; default?: { url: string } } | undefined,
+  id: string
+) => t?.high?.url || t?.medium?.url || t?.default?.url || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+
+// ─── Key-aware fetch with auto-rotation ──────────────────────────────────────
+
+/**
+ * Fetches a URL, replacing {KEY} placeholder with the active API key.
+ * On quota error (403 quotaExceeded / 429), rotates to the next key and retries once.
+ * Returns { data, error } — data is null on unrecoverable error.
+ */
+const apiFetch = async (
+  buildUrl: (key: string) => string
+): Promise<{ data: unknown; error: string | null }> => {
+  if (totalKeys() === 0) {
+    return { data: null, error: "no_key: No API key configured in VITE_YOUTUBE_API_KEYS" };
+  }
+
+  const tryFetch = async (key: string): Promise<{ data: unknown; error: string | null }> => {
+    const url = buildUrl(key);
+    let res: Response;
+    try {
+      res = await fetch(url);
+    } catch (e) {
+      return { data: null, error: `network: ${String(e)}` };
+    }
+
+    if (res.ok) {
+      const data = await res.json();
+      return { data, error: null };
+    }
+
+    // Parse error body
+    let body: { error?: { message?: string; errors?: { reason?: string }[] } } = {};
+    try { body = await res.json(); } catch { /* ignore */ }
+
+    const reason = body?.error?.errors?.[0]?.reason ?? "";
+    const msg = body?.error?.message ?? `HTTP ${res.status}`;
+
+    const isQuota =
+      reason === "quotaExceeded" ||
+      reason === "dailyLimitExceeded" ||
+      res.status === 429;
+
+    if (isQuota) return { data: null, error: "quota_exceeded" };
+    return { data: null, error: msg };
+  };
+
+  // First attempt with current key
+  const first = await tryFetch(getActiveKey());
+  if (first.error !== "quota_exceeded") return first;
+
+  // Rotate and retry once
+  const nextKey = rotateKey();
+  if (!nextKey) return { data: null, error: "quota_exceeded" };
+
+  const second = await tryFetch(nextKey);
+  if (second.error !== "quota_exceeded") return second;
+
+  // Try remaining keys
+  let key = rotateKey();
+  while (key) {
+    const attempt = await tryFetch(key);
+    if (attempt.error !== "quota_exceeded") return attempt;
+    key = rotateKey();
+  }
+
+  return { data: null, error: "quota_exceeded" };
+};
+
+// ─── Shared helpers ───────────────────────────────────────────────────────────
+
+const fetchChannelAvatars = async (ids: string[]): Promise<Map<string, string>> => {
+  if (!ids.length) return new Map();
+  const { data } = await apiFetch(
+    (k) => `${YOUTUBE_API_BASE_URL}/channels?part=snippet&id=${[...new Set(ids)].join(",")}&key=${k}`
+  );
+  if (!data) return new Map();
+  return new Map(
+    ((data as { items?: YouTubeChannelItem[] }).items ?? []).map((c) => [
+      c.id, c.snippet?.thumbnails?.default?.url || "",
+    ])
+  );
+};
+
+const fetchVideoDetails = async (ids: string[]): Promise<Map<string, YouTubeVideoItem>> => {
+  if (!ids.length) return new Map();
+  const { data } = await apiFetch(
+    (k) => `${YOUTUBE_API_BASE_URL}/videos?part=contentDetails,statistics&id=${ids.join(",")}&key=${k}`
+  );
+  if (!data) return new Map();
+  return new Map(
+    ((data as { items?: YouTubeVideoItem[] }).items ?? []).map((v) => [v.id, v])
+  );
+};
+
+// ─── Public API ───────────────────────────────────────────────────────────────
 
 export const searchYouTubeVideos = async (
-  query: string = "",
-  maxResults: number = 12,
-  pageToken?: string
+  query = "", maxResults = 12, pageToken?: string
 ): Promise<PaginatedResult> => {
-  try {
-    let searchUrl = `${YOUTUBE_API_BASE_URL}/search?part=snippet&type=video&maxResults=${maxResults}&q=${encodeURIComponent(
-      query || "trending"
-    )}&key=${YOUTUBE_API_KEY}`;
-    if (pageToken) searchUrl += `&pageToken=${pageToken}`;
-    
-    const searchResponse = await fetch(searchUrl);
-    if (!searchResponse.ok) throw new Error("Failed to fetch videos");
-    
-    const searchData = await searchResponse.json();
-    const items: YouTubeSearchItem[] = searchData.items || [];
-    const nextPageToken = searchData.nextPageToken;
-    
-    if (items.length === 0) return { videos: [], nextPageToken: undefined };
-    
-    // Get video details (duration, view count)
-    const videoIds = items.map((item) => item.id.videoId).join(",");
-    const videoDetailsUrl = `${YOUTUBE_API_BASE_URL}/videos?part=contentDetails,statistics&id=${videoIds}&key=${YOUTUBE_API_KEY}`;
-    
-    const videoDetailsResponse = await fetch(videoDetailsUrl);
-    const videoDetailsData = await videoDetailsResponse.json();
-    const videoDetails: YouTubeVideoDetails[] = videoDetailsData.items || [];
-    
-    // Get channel avatars
-    const channelIds = [...new Set(items.map((item) => item.snippet.channelId))].join(",");
-    const channelDetailsUrl = `${YOUTUBE_API_BASE_URL}/channels?part=snippet&id=${channelIds}&key=${YOUTUBE_API_KEY}`;
-    
-    const channelDetailsResponse = await fetch(channelDetailsUrl);
-    const channelDetailsData = await channelDetailsResponse.json();
-    const channelDetails: YouTubeChannelDetails[] = channelDetailsData.items || [];
-    
-    const channelAvatarMap = new Map(
-      channelDetails.map((channel) => [
-        channel.id,
-        channel.snippet.thumbnails.default.url,
-      ])
-    );
-    
-    const videoDetailsMap = new Map(
-      videoDetails.map((video) => [video.id, video])
-    );
-    
-    const videos = items.map((item) => {
-      const details = videoDetailsMap.get(item.id.videoId);
+  const { data, error } = await apiFetch(
+    (k) =>
+      `${YOUTUBE_API_BASE_URL}/search?part=snippet&type=video` +
+      `&maxResults=${maxResults}&q=${encodeURIComponent(query || "trending")}` +
+      `&key=${k}` + (pageToken ? `&pageToken=${pageToken}` : "")
+  );
+
+  if (error) { console.error("[youtubeApi] search:", error); return { videos: [], error }; }
+
+  const d = data as { items?: YouTubeSearchItem[]; nextPageToken?: string };
+  const items = d.items ?? [];
+  if (!items.length) return { videos: [], nextPageToken: undefined };
+
+  const [detailsMap, avatarMap] = await Promise.all([
+    fetchVideoDetails(items.map((i) => i.id.videoId)),
+    fetchChannelAvatars(items.map((i) => i.snippet.channelId)),
+  ]);
+
+  return {
+    videos: items.map((item) => {
+      const det = detailsMap.get(item.id.videoId);
+      const raw = det?.contentDetails?.duration ?? "PT0S";
       return {
         id: item.id.videoId,
-        thumbnail: item.snippet.thumbnails.high.url,
+        thumbnail: bestThumb(item.snippet.thumbnails, item.id.videoId),
         title: item.snippet.title,
-        channel: {
-          id: item.snippet.channelId,
-          name: item.snippet.channelTitle,
-          avatar: channelAvatarMap.get(item.snippet.channelId) || "",
-        },
-        views: details ? formatViewCount(details.statistics.viewCount) : "0",
+        channel: { id: item.snippet.channelId, name: item.snippet.channelTitle, avatar: avatarMap.get(item.snippet.channelId) || "" },
+        views: formatViewCount(det?.statistics?.viewCount),
         uploadedAt: formatUploadDate(item.snippet.publishedAt),
-        duration: details ? formatDuration(details.contentDetails.duration) : "0:00",
+        duration: formatDuration(raw),
+        durationSeconds: parseDurationSeconds(raw),
       };
-    });
-    return { videos, nextPageToken };
-  } catch (error) {
-    console.error("Error fetching YouTube videos:", error);
-    return { videos: [], nextPageToken: undefined };
-  }
+    }),
+    nextPageToken: d.nextPageToken,
+  };
 };
 
-export const getPopularVideos = async (maxResults: number = 12, pageToken?: string): Promise<PaginatedResult> => {
-  try {
-    let url = `${YOUTUBE_API_BASE_URL}/videos?part=snippet,contentDetails,statistics&chart=mostPopular&maxResults=${maxResults}&key=${YOUTUBE_API_KEY}`;
-    if (pageToken) url += `&pageToken=${pageToken}`;
-    
-    const response = await fetch(url);
-    if (!response.ok) throw new Error("Failed to fetch popular videos");
-    
-    const data = await response.json();
-    const items = data.items || [];
-    const nextPageToken = data.nextPageToken;
-    
-    if (items.length === 0) return { videos: [], nextPageToken: undefined };
-    
-    const channelIds = [...new Set(items.map((item: any) => item.snippet.channelId))].join(",");
-    const channelDetailsUrl = `${YOUTUBE_API_BASE_URL}/channels?part=snippet&id=${channelIds}&key=${YOUTUBE_API_KEY}`;
-    
-    const channelDetailsResponse = await fetch(channelDetailsUrl);
-    const channelDetailsData = await channelDetailsResponse.json();
-    const channelDetails: YouTubeChannelDetails[] = channelDetailsData.items || [];
-    
-    const channelAvatarMap = new Map(
-      channelDetails.map((channel) => [
-        channel.id,
-        channel.snippet.thumbnails.default.url,
-      ])
-    );
-    
-    const videos = items.map((item: any) => ({
-      id: item.id,
-      thumbnail: item.snippet.thumbnails.high.url,
-      title: item.snippet.title,
-      channel: {
-        id: item.snippet.channelId,
-        name: item.snippet.channelTitle,
-        avatar: channelAvatarMap.get(item.snippet.channelId) || "",
-      },
-      views: formatViewCount(item.statistics?.viewCount),
-      uploadedAt: formatUploadDate(item.snippet.publishedAt),
-      duration: formatDuration(item.contentDetails.duration),
-    }));
-    return { videos, nextPageToken };
-  } catch (error) {
-    console.error("Error fetching popular videos:", error);
-    return { videos: [], nextPageToken: undefined };
+export const getPopularVideos = async (
+  maxResults = 12, pageToken?: string
+): Promise<PaginatedResult> => {
+  const { data, error } = await apiFetch(
+    (k) =>
+      `${YOUTUBE_API_BASE_URL}/videos?part=snippet,contentDetails,statistics` +
+      `&chart=mostPopular&maxResults=${maxResults}&key=${k}` +
+      (pageToken ? `&pageToken=${pageToken}` : "")
+  );
+
+  if (error || !(data as { items?: unknown[] })?.items?.length) {
+    if (error) console.error("[youtubeApi] popular:", error);
+    // Fallback to search
+    return searchYouTubeVideos("trending", maxResults, pageToken);
   }
+
+  const d = data as { items: YouTubeVideoItem[]; nextPageToken?: string };
+  const avatarMap = await fetchChannelAvatars(d.items.map((i) => i.snippet.channelId));
+
+  return {
+    videos: d.items.map((item) => {
+      const raw = item.contentDetails?.duration ?? "PT0S";
+      return {
+        id: item.id,
+        thumbnail: bestThumb(item.snippet.thumbnails, item.id),
+        title: item.snippet.title,
+        channel: { id: item.snippet.channelId, name: item.snippet.channelTitle, avatar: avatarMap.get(item.snippet.channelId) || "" },
+        views: formatViewCount(item.statistics?.viewCount),
+        uploadedAt: formatUploadDate(item.snippet.publishedAt),
+        duration: formatDuration(raw),
+        durationSeconds: parseDurationSeconds(raw),
+      };
+    }),
+    nextPageToken: d.nextPageToken,
+  };
+};
+
+export const getShorts = async (
+  maxResults = 20, pageToken?: string
+): Promise<PaginatedResult> => {
+  const { data, error } = await apiFetch(
+    (k) =>
+      `${YOUTUBE_API_BASE_URL}/search?part=snippet&type=video` +
+      `&videoDuration=short&maxResults=${Math.min(maxResults * 2, 50)}` +
+      `&order=viewCount&q=%23shorts&key=${k}` +
+      (pageToken ? `&pageToken=${pageToken}` : "")
+  );
+
+  if (error) { console.error("[youtubeApi] shorts:", error); return searchYouTubeVideos("#shorts", maxResults, pageToken); }
+
+  const d = data as { items?: YouTubeSearchItem[]; nextPageToken?: string };
+  const items = d.items ?? [];
+  if (!items.length) return { videos: [], nextPageToken: undefined };
+
+  const [detailsMap, avatarMap] = await Promise.all([
+    fetchVideoDetails(items.map((i) => i.id.videoId)),
+    fetchChannelAvatars(items.map((i) => i.snippet.channelId)),
+  ]);
+
+  return {
+    videos: items
+      .map((item) => {
+        const det = detailsMap.get(item.id.videoId);
+        const raw = det?.contentDetails?.duration ?? "PT0S";
+        const secs = parseDurationSeconds(raw);
+        return {
+          id: item.id.videoId,
+          thumbnail: bestThumb(item.snippet.thumbnails, item.id.videoId),
+          title: item.snippet.title,
+          channel: { id: item.snippet.channelId, name: item.snippet.channelTitle, avatar: avatarMap.get(item.snippet.channelId) || "" },
+          views: formatViewCount(det?.statistics?.viewCount),
+          uploadedAt: formatUploadDate(item.snippet.publishedAt),
+          duration: formatDuration(raw),
+          durationSeconds: secs,
+        };
+      })
+      .filter((v) => (v.durationSeconds ?? 999) <= 60)
+      .slice(0, maxResults),
+    nextPageToken: d.nextPageToken,
+  };
 };
 
 export const getVideoDetails = async (videoId: string): Promise<YouTubeVideo | null> => {
-  try {
-    const url = `${YOUTUBE_API_BASE_URL}/videos?part=snippet,contentDetails,statistics&id=${videoId}&key=${YOUTUBE_API_KEY}`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error("Failed to fetch video details");
-    
-    const data = await response.json();
-    const item = data.items?.[0];
-    if (!item) return null;
+  const { data, error } = await apiFetch(
+    (k) =>
+      `${YOUTUBE_API_BASE_URL}/videos?part=snippet,contentDetails,statistics&id=${videoId}&key=${k}`
+  );
 
-    const channelUrl = `${YOUTUBE_API_BASE_URL}/channels?part=snippet&id=${item.snippet.channelId}&key=${YOUTUBE_API_KEY}`;
-    const channelRes = await fetch(channelUrl);
-    const channelData = await channelRes.json();
-    const channelAvatar = channelData.items?.[0]?.snippet?.thumbnails?.default?.url || "";
+  if (error) { console.error("[youtubeApi] videoDetails:", error); return null; }
 
-    return {
-      id: item.id,
-      thumbnail: item.snippet.thumbnails.high.url,
-      title: item.snippet.title,
-      channel: {
-        id: item.snippet.channelId,
-        name: item.snippet.channelTitle,
-        avatar: channelAvatar,
-      },
-      views: formatViewCount(item.statistics?.viewCount),
-      uploadedAt: formatUploadDate(item.snippet.publishedAt),
-      duration: formatDuration(item.contentDetails.duration),
-    };
-  } catch (error) {
-    console.error("Error fetching video details:", error);
-    return null;
-  }
+  const item: YouTubeVideoItem | undefined = (data as { items?: YouTubeVideoItem[] }).items?.[0];
+  if (!item) return null;
+
+  const avatarMap = await fetchChannelAvatars([item.snippet.channelId]);
+  const raw = item.contentDetails?.duration ?? "PT0S";
+
+  return {
+    id: item.id,
+    thumbnail: bestThumb(item.snippet.thumbnails, item.id),
+    title: item.snippet.title,
+    channel: { id: item.snippet.channelId, name: item.snippet.channelTitle, avatar: avatarMap.get(item.snippet.channelId) || "" },
+    views: formatViewCount(item.statistics?.viewCount),
+    uploadedAt: formatUploadDate(item.snippet.publishedAt),
+    duration: formatDuration(raw),
+    durationSeconds: parseDurationSeconds(raw),
+  };
 };
