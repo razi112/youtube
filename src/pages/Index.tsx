@@ -11,7 +11,7 @@ import { getPopularVideos, searchYouTubeVideos, YouTubeVideo } from "@/services/
 import { Loader2 } from "lucide-react";
 
 // Sections that show a dedicated page instead of the video grid
-const USER_SECTIONS = ["History", "Liked videos", "Library", "Subscriptions"] as const;
+const USER_SECTIONS = ["History", "Liked videos", "Library", "Subscriptions", "Downloads"] as const;
 type UserSection = typeof USER_SECTIONS[number];
 
 const isUserSection = (s: string): s is UserSection =>
@@ -156,9 +156,9 @@ const Index = () => {
       <main
         className={`pt-14 transition-all duration-200 ${
           sidebarOpen ? "md:ml-60" : "md:ml-[72px]"
-        } ml-0 pb-16 md:pb-0`}
+        } ml-0 pb-20 md:pb-4`}
       >
-        <div className="px-3 md:px-6">
+        <div className="px-2 sm:px-3 md:px-5 lg:px-6">
 
           {/* Category chips — hide on user sections */}
           {!showUserSection && (

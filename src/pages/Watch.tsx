@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
+import Comments from "@/components/Comments";
+import SignInModal from "@/components/SignInModal";
+import DownloadModal from "@/components/DownloadModal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { getPopularVideos, YouTubeVideo, getVideoDetails } from "@/services/youtubeApi";
@@ -31,7 +34,7 @@ import {
 /* ─── Compact related-video row ─── */
 const RelatedCard = ({ v }: { v: YouTubeVideo }) => (
   <Link to={`/watch?v=${v.id}`} className="flex gap-2 group">
-    <div className="relative w-[168px] flex-shrink-0 rounded-lg overflow-hidden bg-muted">
+    <div className="relative w-[140px] sm:w-[160px] lg:w-[168px] flex-shrink-0 rounded-lg overflow-hidden bg-muted">
       <img
         src={v.thumbnail}
         alt={v.title}
@@ -43,60 +46,18 @@ const RelatedCard = ({ v }: { v: YouTubeVideo }) => (
       </span>
     </div>
     <div className="flex-1 min-w-0 py-0.5">
-      <h3 className="text-[13px] font-medium line-clamp-2 leading-[18px] text-foreground group-hover:text-primary transition-colors">
+      <h3 className="text-[12px] sm:text-[13px] font-medium line-clamp-2 leading-[17px] sm:leading-[18px] text-foreground group-hover:text-primary transition-colors">
         {v.title}
       </h3>
-      <p className="text-[12px] text-muted-foreground mt-1 hover:text-foreground transition-colors truncate">
+      <p className="text-[11px] sm:text-[12px] text-muted-foreground mt-1 hover:text-foreground transition-colors truncate">
         {v.channel.name}
       </p>
-      <p className="text-[12px] text-muted-foreground">
+      <p className="text-[11px] sm:text-[12px] text-muted-foreground">
         {v.views} views&nbsp;•&nbsp;{v.uploadedAt}
       </p>
     </div>
   </Link>
 );
-
-/* ─── Comment row ─── */
-const Comment = ({
-  avatar, name, time, text, likes,
-}: {
-  avatar: string; name: string; time: string; text: string; likes: string;
-}) => (
-  <div className="flex gap-3">
-    <Avatar className="h-9 w-9 flex-shrink-0">
-      <AvatarImage src={avatar} />
-      <AvatarFallback className="text-xs font-semibold bg-secondary">
-        {name[0].toUpperCase()}
-      </AvatarFallback>
-    </Avatar>
-    <div className="flex-1 min-w-0">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="text-[13px] font-medium">{name}</span>
-        <span className="text-[12px] text-muted-foreground">{time}</span>
-      </div>
-      <p className="text-[13px] leading-5 text-foreground/90">{text}</p>
-      <div className="flex items-center gap-3 mt-2">
-        <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground text-[12px] transition-colors">
-          <ThumbsUp className="h-3.5 w-3.5" />{likes}
-        </button>
-        <button className="text-muted-foreground hover:text-foreground transition-colors">
-          <ThumbsDown className="h-3.5 w-3.5" />
-        </button>
-        <button className="text-[12px] font-medium text-muted-foreground hover:text-foreground transition-colors">
-          Reply
-        </button>
-      </div>
-    </div>
-  </div>
-);
-
-const FAKE_COMMENTS = [
-  { avatar: "https://i.pravatar.cc/40?img=1", name: "Alex Johnson",  time: "2 days ago",  text: "This is absolutely incredible! The quality of this content never disappoints. Keep it up! 🔥", likes: "1.2K" },
-  { avatar: "https://i.pravatar.cc/40?img=2", name: "Sarah M.",       time: "1 day ago",   text: "I've been watching this channel for years and it just keeps getting better. Subscribed and notifications on!", likes: "847" },
-  { avatar: "https://i.pravatar.cc/40?img=3", name: "TechGuru99",     time: "5 hours ago", text: "The editing on this video is top-tier. Whoever is behind the camera deserves a raise 😂", likes: "312" },
-  { avatar: "https://i.pravatar.cc/40?img=4", name: "Maria Garcia",   time: "3 hours ago", text: "Came here from the shorts and I'm not disappointed. New subscriber here!", likes: "204" },
-  { avatar: "https://i.pravatar.cc/40?img=5", name: "Dev Patel",      time: "1 hour ago",  text: "Watched this three times already. Some content just hits different.", likes: "98" },
-];
 
 /* ─── Main Watch page ─── */
 const Watch = () => {
@@ -117,8 +78,9 @@ const Watch = () => {
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [showSignIn, setShowSignIn] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
-  const [showComments, setShowComments] = useState(true);
+  const [showDownload, setShowDownload] = useState(false);
 
   useEffect(() => {
     if (!videoId) return;
@@ -220,12 +182,20 @@ const Watch = () => {
         />
       )}
 
+      <SignInModal open={showSignIn} onClose={() => setShowSignIn(false)} />
+      <DownloadModal
+        open={showDownload}
+        onClose={() => setShowDownload(false)}
+        video={video}
+        onSignIn={() => { setShowDownload(false); setShowSignIn(true); }}
+      />
+
       <main
         className={`pt-14 transition-all duration-200 ${
           sidebarOpen ? "md:ml-60" : "md:ml-[72px]"
         } ml-0 pb-20 md:pb-6`}
       >
-        <div className="max-w-[1800px] mx-auto px-3 md:px-6 lg:px-8 flex flex-col lg:flex-row gap-6 py-4">
+        <div className="max-w-[1800px] mx-auto px-2 sm:px-3 md:px-5 lg:px-8 flex flex-col lg:flex-row gap-4 sm:gap-6 py-3 sm:py-4">
 
           {/* ── Left: player + info ── */}
           <div className="flex-1 min-w-0">
@@ -316,7 +286,11 @@ const Watch = () => {
                       <BookMarked className={`h-4 w-4 ${saved ? "fill-primary stroke-primary" : ""}`} />
                       <span className="hidden sm:inline">{saved ? "Saved" : "Save"}</span>
                     </Button>
-                    <Button variant="secondary" size="sm" className="rounded-full gap-1.5 px-4 h-9">
+                    <Button
+                      variant="secondary" size="sm"
+                      onClick={() => setShowDownload(true)}
+                      className="rounded-full gap-1.5 px-4 h-9"
+                    >
                       <Download className="h-4 w-4" /><span className="hidden sm:inline">Download</span>
                     </Button>
                     <Button variant="secondary" size="icon" className="rounded-full h-9 w-9">
@@ -345,51 +319,18 @@ const Watch = () => {
                   </button>
                 </div>
 
-                {/* Comments */}
-                <div className="mt-6">
-                  <div className="flex items-center justify-between mb-5">
-                    <h2 className="text-base font-semibold">
-                      {(FAKE_COMMENTS.length * 412).toLocaleString()} Comments
-                    </h2>
-                    <button
-                      onClick={() => setShowComments(!showComments)}
-                      className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      {showComments ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                      {showComments ? "Hide" : "Show"}
-                    </button>
-                  </div>
-
-                  {showComments && (
-                    <>
-                      <div className="flex gap-3 mb-6">
-                        <Avatar className="h-9 w-9 flex-shrink-0">
-                          <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">U</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <input
-                            type="text"
-                            placeholder="Add a comment…"
-                            className="w-full bg-transparent border-b border-border pb-1.5 text-sm focus:outline-none focus:border-foreground transition-colors placeholder:text-muted-foreground"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-5">
-                        {FAKE_COMMENTS.map((c) => <Comment key={c.name} {...c} />)}
-                      </div>
-                      <button className="mt-5 text-sm text-primary font-medium hover:underline flex items-center gap-1">
-                        <ChevronDown className="h-4 w-4" /> Show more comments
-                      </button>
-                    </>
-                  )}
-                </div>
+                {/* Real comments from YouTube API */}
+                <Comments
+                  videoId={videoId}
+                  onSignIn={() => setShowSignIn(true)}
+                />
               </>
             )}
           </div>
 
           {/* ── Right: related videos ── */}
-          <div className="lg:w-[402px] xl:w-[426px] flex-shrink-0">
-            <div className="space-y-2">
+          <div className="w-full lg:w-[360px] xl:w-[402px] flex-shrink-0">
+            <div className="space-y-2 sm:space-y-3">
               {relatedVideos.map((v) => <RelatedCard key={v.id} v={v} />)}
             </div>
           </div>

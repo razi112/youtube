@@ -168,3 +168,42 @@ export const getSavedVideos = async (userId: string): Promise<YouTubeVideo[]> =>
     .limit(50);
   return (data ?? []).map(rowToVideo);
 };
+
+// ─── Downloads ───────────────────────────────────────────────────────────────
+
+export const addDownload = async (video: YouTubeVideo, userId: string) => {
+  await supabase
+    .from("downloads")
+    .upsert(
+      { ...videoToRow(video, userId), downloaded_at: new Date().toISOString() },
+      { onConflict: "user_id,video_id" }
+    );
+};
+
+export const getDownloads = async (userId: string): Promise<YouTubeVideo[]> => {
+  const { data } = await supabase
+    .from("downloads")
+    .select("*")
+    .eq("user_id", userId)
+    .order("downloaded_at", { ascending: false })
+    .limit(50);
+  return (data ?? []).map(rowToVideo);
+};
+
+export const removeDownload = async (videoId: string, userId: string) => {
+  await supabase
+    .from("downloads")
+    .delete()
+    .eq("user_id", userId)
+    .eq("video_id", videoId);
+};
+
+export const isVideoDownloaded = async (videoId: string, userId: string): Promise<boolean> => {
+  const { data } = await supabase
+    .from("downloads")
+    .select("video_id")
+    .eq("user_id", userId)
+    .eq("video_id", videoId)
+    .maybeSingle();
+  return !!data;
+};

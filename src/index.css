@@ -6,34 +6,24 @@
   :root {
     --background: 0 0% 6%;
     --foreground: 0 0% 100%;
-
     --card: 0 0% 10%;
     --card-foreground: 0 0% 100%;
-
     --popover: 0 0% 12%;
     --popover-foreground: 0 0% 100%;
-
     --primary: 0 100% 50%;
     --primary-foreground: 0 0% 100%;
-
     --secondary: 0 0% 15%;
     --secondary-foreground: 0 0% 100%;
-
     --muted: 0 0% 20%;
     --muted-foreground: 0 0% 65%;
-
     --accent: 0 0% 18%;
     --accent-foreground: 0 0% 100%;
-
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
-
     --border: 0 0% 20%;
     --input: 0 0% 18%;
     --ring: 0 100% 50%;
-
     --radius: 0.75rem;
-
     --sidebar-background: 0 0% 8%;
     --sidebar-foreground: 0 0% 85%;
     --sidebar-primary: 0 100% 50%;
@@ -46,64 +36,42 @@
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
-
+  * { @apply border-border; }
+  html { @apply scroll-smooth; }
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+    /* Prevent horizontal overflow on mobile */
+    overflow-x: hidden;
   }
 }
 
 @layer components {
-  /* ── Video card ── */
-  .video-card {
-    @apply rounded-xl overflow-hidden transition-transform duration-200 ease-out;
-  }
-  .video-card:hover {
-    @apply scale-[1.02];
-  }
-  .video-thumbnail {
-    @apply aspect-video w-full object-cover rounded-xl;
-  }
-
   /* ── Sidebar ── */
   .sidebar-item {
-    @apply flex items-center gap-5 px-3 py-2.5 rounded-lg transition-colors duration-150 text-left w-full;
+    @apply flex items-center gap-4 px-3 py-2.5 rounded-lg
+           transition-colors duration-150 text-left w-full text-sm;
   }
-  .sidebar-item:hover {
-    @apply bg-accent;
-  }
-  .sidebar-item.active {
-    @apply bg-accent font-semibold;
-  }
+  .sidebar-item:hover { @apply bg-accent; }
+  .sidebar-item.active { @apply bg-accent font-semibold; }
 
   /* ── Search bar ── */
   .search-input {
-    @apply bg-input border border-border rounded-l-full px-4 py-2 text-foreground
-           placeholder:text-muted-foreground focus:outline-none focus:border-primary/60
-           transition-colors;
+    @apply bg-input border border-border rounded-l-full px-3 py-2 text-sm
+           text-foreground placeholder:text-muted-foreground
+           focus:outline-none focus:border-primary/60 transition-colors w-full;
   }
   .search-button {
-    @apply bg-secondary hover:bg-accent px-5 py-2 rounded-r-full border border-l-0
-           border-border transition-colors;
+    @apply bg-secondary hover:bg-accent px-4 py-2 rounded-r-full
+           border border-l-0 border-border transition-colors flex-shrink-0;
   }
 
   /* ── Category chips ── */
   .chip {
-    @apply px-3 py-1.5 rounded-lg bg-secondary text-sm font-medium
-           hover:bg-accent transition-colors cursor-pointer whitespace-nowrap
-           select-none;
+    @apply px-3 py-1.5 rounded-lg bg-secondary text-xs sm:text-sm font-medium
+           hover:bg-accent transition-colors cursor-pointer whitespace-nowrap select-none;
   }
-  .chip.active {
-    @apply bg-foreground text-background;
-  }
-
-  /* ── Watch page player shadow ── */
-  .player-shadow {
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
-  }
+  .chip.active { @apply bg-foreground text-background; }
 }
 
 @layer utilities {
@@ -111,8 +79,10 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+  /* iOS safe area bottom padding for bottom nav */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }

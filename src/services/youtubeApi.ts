@@ -325,3 +325,107 @@ export const getVideoDetails = async (videoId: string): Promise<YouTubeVideo | n
     durationSeconds: parseDurationSeconds(raw),
   };
 };
+
+// ─── Comments ─────────────────────────────────────────────────────────────────
+
+export interface YouTubeComment {
+  id: string;
+  authorName: string;
+  authorAvatar: string;
+  authorChannelId: string;
+  text: string;
+  likeCount: number;
+  publishedAt: string;
+  updatedAt: string;
+  replyCount: number;
+  replies?: YouTubeComment[];
+}
+
+export interface CommentsResult {
+  comments: YouTubeComment[];
+  nextPageToken?: string;
+  totalCount?: number;
+  error?: string;
+}
+
+interface RawCommentSnippet {
+  authorDisplayName: string;
+  authorProfileImageUrl: string;
+  authorChannelId?: { value: string };
+  textDisplay: string;
+  likeCount: number;
+  publishedAt: string;
+  updatedAt: string;
+}
+
+interface RawCommentThread {
+  id: string;
+  snippet: {
+    totalReplyCount: number;
+    topLevelComment: { id: string; snippet: RawCommentSnippet };
+  };
+  replies?: { comments: { id: string; snippet: RawCommentSnippet }[] };
+}
+
+const rawToComment = (id: string, s: RawCommentSnippet, replyCount = 0): YouTubeComment => ({
+  id,
+  authorName: s.authorDisplayName,
+  authorAvatar: s.authorProfileImageUrl,
+  authorChannelId: s.authorChannelId?.value ?? "",
+  text: s.textDisplay,
+  likeCount: s.likeCount ?? 0,
+  publishedAt: formatUploadDate(s.publishedAt),
+  updatedAt: s.updatedAt,
+  replyCount,
+});
+
+export const getVideoComments = async (
+  videoId: string,
+  maxResults = 20,
+  pageToken?: string,
+  order: "relevance" | "time" = "relevance"
+): Promise<CommentsResult> => {
+  const { data, error } = await apiFetch(
+    (k) =>
+      `${YOUTUBE_API_BASE_URL}/commentThreads` +
+      `?part=snippet,replies` +
+      `&videoId=${encodeURIComponent(videoId)}` +
+      `&maxResults=${maxResults}` +
+      `&order=${order}` +
+      `&textFormat=html` +
+      `&key=${k}` +
+      (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "")
+  );
+
+  if (error) {
+    console.error("[youtubeApi] getVideoComments:", error);
+    return { comments: [], error };
+  }
+
+  const d = data as {
+    items?: RawCommentThread[];
+    nextPageToken?: string;
+    pageInfo?: { totalResults?: number };
+  };
+
+  const comments: YouTubeComment[] = (d.items ?? []).map((thread) => {
+    const top = thread.snippet.topLevelComment;
+    const comment = rawToComment(top.id, top.snippet, thread.snippet.totalReplyCount);
+
+    // Attach inline replies if present (max 5 from API)
+    if (thread.replies?.comments?.length) {
+      comment.replies = thread.replies.comments
+        .slice()
+        .reverse() // API returns newest first, show oldest first
+        .map((r) => rawToComment(r.id, r.snippet));
+    }
+
+    return comment;
+  });
+
+  return {
+    comments,
+    nextPageToken: d.nextPageToken,
+    totalCount: d.pageInfo?.totalResults,
+  };
+};

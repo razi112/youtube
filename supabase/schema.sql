@@ -65,3 +65,22 @@ create policy "Users manage own likes"
 
 create policy "Users manage own saves"
   on saved_videos for all using (auth.uid() = user_id);
+
+-- Downloads table
+create table if not exists downloads (
+  id             uuid primary key default gen_random_uuid(),
+  user_id        uuid references auth.users(id) on delete cascade not null,
+  video_id       text not null,
+  title          text,
+  thumbnail      text,
+  channel_name   text,
+  channel_avatar text,
+  duration       text,
+  views          text,
+  uploaded_at    text,
+  downloaded_at  timestamptz default now(),
+  unique(user_id, video_id)
+);
+
+alter table downloads enable row level security;
+create policy "Users manage own downloads" on downloads for all using (auth.uid() = user_id);

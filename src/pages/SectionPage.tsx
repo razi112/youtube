@@ -12,6 +12,8 @@ import {
   clearHistory,
   unlikeVideo,
   unsaveVideo,
+  getDownloads,
+  removeDownload,
 } from "@/lib/userStore";
 import {
   Clock,
@@ -23,11 +25,12 @@ import {
   Loader2,
   LogIn,
   History,
+  Download,
 } from "lucide-react";
 
 // ─── Section config ──────────────────────────────────────────────────────────
 
-type SectionKey = "History" | "Liked videos" | "Library" | "Subscriptions";
+type SectionKey = "History" | "Liked videos" | "Library" | "Subscriptions" | "Downloads";
 
 const SECTION_META: Record<
   SectionKey,
@@ -57,6 +60,12 @@ const SECTION_META: Record<
     emptyMsg: "Subscribe to channels to see their latest videos here.",
     emptyIcon: PlaySquare,
   },
+  Downloads: {
+    icon: Download,
+    title: "Downloads",
+    emptyMsg: "Videos you download to ADØ will appear here.",
+    emptyIcon: Download,
+  },
 };
 
 // ─── Single video row ────────────────────────────────────────────────────────
@@ -73,7 +82,7 @@ const VideoRow = ({
     <div className="flex gap-3 group hover:bg-accent/40 rounded-xl p-2 -mx-2 transition-colors">
       {/* Thumbnail */}
       <div
-        className="relative w-40 sm:w-48 flex-shrink-0 rounded-lg overflow-hidden bg-muted cursor-pointer"
+        className="relative w-32 sm:w-40 md:w-48 flex-shrink-0 rounded-lg overflow-hidden bg-muted cursor-pointer"
         onClick={() => navigate(`/watch?v=${video.id}`)}
       >
         <img
@@ -201,7 +210,8 @@ const SectionPage = ({ section, onSignInClick }: SectionPageProps) => {
       History: () => getHistory(user.id),
       "Liked videos": () => getLikedVideos(user.id),
       Library: () => getSavedVideos(user.id),
-      Subscriptions: async () => [], // subscriptions stored separately
+      Subscriptions: async () => [],
+      Downloads: () => getDownloads(user.id),
     };
     fetchers[section]().then((vids) => {
       setVideos(vids);
@@ -215,6 +225,7 @@ const SectionPage = ({ section, onSignInClick }: SectionPageProps) => {
     if (section === "History") await removeFromHistory(videoId, user.id);
     if (section === "Liked videos") await unlikeVideo(videoId, user.id);
     if (section === "Library") await unsaveVideo(videoId, user.id);
+    if (section === "Downloads") await removeDownload(videoId, user.id);
   };
 
   const handleClearAll = async () => {
@@ -236,7 +247,7 @@ const SectionPage = ({ section, onSignInClick }: SectionPageProps) => {
   }
 
   return (
-    <div className="max-w-4xl">
+    <div className="w-full max-w-4xl">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">

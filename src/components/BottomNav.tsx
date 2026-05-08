@@ -1,4 +1,4 @@
-import { Home, Compass, User, Clock } from "lucide-react";
+import { Home, Compass, User } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 interface BottomNavProps {
@@ -8,7 +8,15 @@ interface BottomNavProps {
 
 // Custom Clips icon
 const ClipsIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 24 24"
+    className={className}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <rect x="2" y="6" width="14" height="12" rx="2" />
     <path d="M16 10l4-2v8l-4-2" />
     <line x1="6" y1="6" x2="6" y2="2" />
@@ -17,11 +25,10 @@ const ClipsIcon = ({ className }: { className?: string }) => (
 );
 
 const navItems = [
-  { icon: Home,      label: "Home",        section: "Home",          path: "/" },
-  { icon: ClipsIcon, label: "Clips",       section: "Clips",         path: "/clips" },
-  { icon: Compass,   label: "Explore",     section: "Trending",      path: "/" },
-  { icon: Clock,     label: "Library",     section: "Library",       path: "/" },
-  { icon: User,      label: "You",         section: "History",       path: "/" },
+  { icon: Home,      label: "Home",    section: "Home",     path: "/" },
+  { icon: ClipsIcon, label: "Clips",   section: "Clips",    path: "/clips" },
+  { icon: Compass,   label: "Explore", section: "Trending", path: "/" },
+  { icon: User,      label: "You",     section: "History",  path: "/" },
 ];
 
 const BottomNav = ({ activeSection, onSectionChange }: BottomNavProps) => {
@@ -31,14 +38,14 @@ const BottomNav = ({ activeSection, onSectionChange }: BottomNavProps) => {
   // Hide on watch page
   if (location.pathname === "/watch") return null;
 
-  const handleClick = (item: typeof navItems[0]) => {
+  const handleClick = (item: (typeof navItems)[0]) => {
     onSectionChange(item.section);
     navigate(item.path);
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border md:hidden">
-      <div className="flex items-center justify-around py-1">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border md:hidden safe-area-inset-bottom">
+      <div className="flex items-center justify-around py-1 pb-safe">
         {navItems.map((item) => {
           const isActive =
             item.path === "/clips"
@@ -49,12 +56,16 @@ const BottomNav = ({ activeSection, onSectionChange }: BottomNavProps) => {
             <button
               key={item.label}
               onClick={() => handleClick(item)}
-              className={`flex flex-col items-center gap-0.5 py-1.5 px-2 text-[10px] transition-colors relative ${
-                isActive ? "text-foreground font-semibold" : "text-muted-foreground"
+              className={`flex flex-col items-center gap-0.5 py-2 px-5 text-[11px] transition-colors relative ${
+                isActive
+                  ? "text-foreground font-semibold"
+                  : "text-muted-foreground"
               }`}
             >
               <div className="relative">
-                <item.icon className={`h-5 w-5 ${isActive ? "stroke-[2.5]" : ""}`} />
+                <item.icon
+                  className={`h-[22px] w-[22px] ${isActive ? "stroke-[2.5]" : "stroke-[1.8]"}`}
+                />
                 {item.label === "Clips" && (
                   <span className="absolute -top-1.5 -right-3 text-[7px] font-black text-primary leading-none">
                     ADØ

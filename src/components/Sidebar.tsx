@@ -15,7 +15,7 @@ import {
   Trophy,
   Lightbulb,
   Shirt,
-  Clapperboard,
+  Download,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -45,6 +45,7 @@ const libraryItems = [
   { icon: PlaySquare, label: "Library", section: "Library", path: "/" },
   { icon: Clock, label: "History", section: "History", path: "/" },
   { icon: ThumbsUp, label: "Liked videos", section: "Liked videos", path: "/" },
+  { icon: Download, label: "Downloads", section: "Downloads", path: "/" },
 ];
 
 const exploreItems = [
