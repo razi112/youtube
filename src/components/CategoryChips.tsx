@@ -34,7 +34,14 @@ const CategoryChips = ({ activeCategory, onCategoryChange }: CategoryChipsProps)
   };
 
   return (
-    <div className="flex items-center gap-1 sticky top-14 bg-background z-40 py-3">
+    <div className="flex items-center gap-1 sticky top-14 z-40 py-3"
+      style={{
+        background: "rgba(10, 9, 20, 0.5)",
+        backdropFilter: "blur(20px) saturate(160%)",
+        WebkitBackdropFilter: "blur(20px) saturate(160%)",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+      }}
+    >
       <button
         onClick={() => scroll("left")}
         className="hidden md:flex shrink-0 items-center justify-center h-8 w-8 rounded-full hover:bg-accent"

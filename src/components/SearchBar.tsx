@@ -189,7 +189,7 @@ const SearchBar = ({ searchQuery, onSearchChange }: SearchBarProps) => {
         {/* Input wrapper */}
         <div
           className={`flex flex-1 relative transition-all ${
-            focused ? "ring-2 ring-blue-500 rounded-l-full" : ""
+            focused ? "rounded-l-full ring-1 ring-white/25" : ""
           }`}
         >
           {/* Search icon inside input when focused */}
@@ -208,7 +208,7 @@ const SearchBar = ({ searchQuery, onSearchChange }: SearchBarProps) => {
             onFocus={handleFocus}
             onKeyDown={handleKeyDown}
             className={`search-input flex-1 transition-all ${
-              focused ? "pl-9 rounded-l-full border-blue-500" : ""
+              focused ? "pl-9 rounded-l-full" : ""
             } ${searchQuery ? "pr-8" : ""}`}
             autoComplete="off"
           />
@@ -228,14 +228,21 @@ const SearchBar = ({ searchQuery, onSearchChange }: SearchBarProps) => {
         {/* Search button */}
         <button
           type="submit"
-          className={`search-button transition-all ${focused ? "border-blue-500/40" : ""}`}
+          className={`search-button transition-all`}
         >
           <Search className="h-5 w-5" />
         </button>
       </form>
 
       {/* Mic button */}
-      <button className="ml-2 hidden sm:flex h-10 w-10 items-center justify-center rounded-full bg-secondary hover:bg-accent transition-colors">
+      <button className="ml-2 hidden sm:flex h-10 w-10 items-center justify-center rounded-full transition-all"
+        style={{
+          background: "rgba(255,255,255,0.07)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          border: "1px solid rgba(255,255,255,0.12)",
+        }}
+      >
         <Mic className="h-5 w-5" />
       </button>
 
@@ -243,8 +250,15 @@ const SearchBar = ({ searchQuery, onSearchChange }: SearchBarProps) => {
       {showDropdown && (
         <div
           ref={dropdownRef}
-          className="absolute top-[calc(100%+6px)] left-0 right-12 bg-[#212121] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[100]"
-          style={{ minWidth: "100%" }}
+          className="absolute top-[calc(100%+6px)] left-0 right-12 rounded-2xl overflow-hidden z-[100]"
+          style={{
+            minWidth: "100%",
+            background: "rgba(12, 10, 26, 0.8)",
+            backdropFilter: "blur(28px) saturate(200%)",
+            WebkitBackdropFilter: "blur(28px) saturate(200%)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 16px 48px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.07)",
+          }}
         >
           <ul className="py-2">
             {suggestions.map((s, i) => (

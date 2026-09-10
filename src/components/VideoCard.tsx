@@ -45,9 +45,10 @@ const VideoCard = ({ video, enablePreview = true }: VideoCardProps) => {
     if (progressTimer.current) clearInterval(progressTimer.current);
   }, []);
 
-  const previewSrc = `https://www.youtube.com/embed/${video.id}?autoplay=1&mute=${
-    muted ? 1 : 0
-  }&controls=0&modestbranding=1&rel=0&loop=1&playlist=${video.id}&start=10`;
+  // Live streams don't have a seek position — omit start/loop/playlist params
+  const previewSrc = video.isLive
+    ? `https://www.youtube.com/embed/${video.id}?autoplay=1&mute=${muted ? 1 : 0}&controls=0&modestbranding=1&rel=0`
+    : `https://www.youtube.com/embed/${video.id}?autoplay=1&mute=${muted ? 1 : 0}&controls=0&modestbranding=1&rel=0&loop=1&playlist=${video.id}&start=10`;
 
   return (
     <div
@@ -86,18 +87,28 @@ const VideoCard = ({ video, enablePreview = true }: VideoCardProps) => {
           </div>
         )}
 
-        {/* Duration badge */}
+        {/* Duration / LIVE badge */}
         {!previewing && (
-          <span className="absolute bottom-1.5 right-1.5 bg-black/80 text-white text-[10px] sm:text-[11px] font-medium px-1 sm:px-1.5 py-0.5 rounded-md leading-none">
-            {video.duration}
-          </span>
+          video.isLive ? (
+            <span className="absolute bottom-1.5 right-1.5 flex items-center gap-1 bg-red-600 text-white text-[10px] sm:text-[11px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md leading-none uppercase tracking-wide">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+              LIVE
+            </span>
+          ) : (
+            <span className="absolute bottom-1.5 right-1.5 text-white text-[10px] sm:text-[11px] font-medium px-1 sm:px-1.5 py-0.5 rounded-md leading-none"
+            style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
+          >
+              {video.duration}
+            </span>
+          )
         )}
 
         {/* Mute toggle */}
         {previewing && (
           <button
             onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
-            className="absolute bottom-2 right-2 bg-black/70 hover:bg-black text-white rounded-full p-1.5 z-10"
+            className="absolute bottom-2 right-2 text-white rounded-full p-1.5 z-10 transition-all"
+            style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.12)" }}
           >
             {muted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
           </button>
@@ -111,11 +122,15 @@ const VideoCard = ({ video, enablePreview = true }: VideoCardProps) => {
             }`}
             onClick={(e) => e.stopPropagation()}
           >
-            <button className="bg-black/80 hover:bg-black text-white rounded-full p-1.5 flex items-center gap-1 text-[11px] font-medium whitespace-nowrap">
+            <button className="text-white rounded-full p-1.5 flex items-center gap-1 text-[11px] font-medium whitespace-nowrap transition-all hover:scale-105"
+              style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.15)" }}
+            >
               <Clock className="h-3.5 w-3.5" />
               <span className="hidden group-hover:inline pr-1">Watch later</span>
             </button>
-            <button className="bg-black/80 hover:bg-black text-white rounded-full p-1.5 flex items-center gap-1 text-[11px] font-medium whitespace-nowrap">
+            <button className="text-white rounded-full p-1.5 flex items-center gap-1 text-[11px] font-medium whitespace-nowrap transition-all hover:scale-105"
+              style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.15)" }}
+            >
               <ListPlus className="h-3.5 w-3.5" />
               <span className="hidden group-hover:inline pr-1">Save</span>
             </button>
@@ -142,7 +157,10 @@ const VideoCard = ({ video, enablePreview = true }: VideoCardProps) => {
             {video.channel.name}
           </p>
           <p className="text-[11px] sm:text-[13px] text-muted-foreground">
-            {video.views} views&nbsp;•&nbsp;{video.uploadedAt}
+            {video.isLive
+              ? <span className="text-red-500 font-medium">● Live now</span>
+              : <>{video.views} views&nbsp;•&nbsp;{video.uploadedAt}</>
+            }
           </p>
         </div>
 
@@ -157,7 +175,7 @@ const VideoCard = ({ video, enablePreview = true }: VideoCardProps) => {
             <MoreVertical className="h-4 w-4" />
           </button>
           {menuOpen && (
-            <div className="absolute right-0 top-7 z-50 w-48 sm:w-52 bg-popover border border-border rounded-xl shadow-xl py-1 text-sm">
+            <div className="absolute right-0 top-7 z-50 w-48 sm:w-52 video-card-menu text-sm overflow-hidden">
               {["Add to queue", "Save to Watch later", "Save to playlist", "Share", "Not interested", "Don't recommend channel"].map((item) => (
                 <button
                   key={item}

@@ -7,7 +7,7 @@ import SignInModal from "@/components/SignInModal";
 import DownloadModal from "@/components/DownloadModal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { getPopularVideos, YouTubeVideo, getVideoDetails } from "@/services/youtubeApi";
+import { getPopularVideos, YouTubeVideo, getVideoDetails, getRelatedVideos } from "@/services/youtubeApi";
 import { useAuth } from "@/context/AuthContext";
 import {
   addToHistory,
@@ -41,7 +41,9 @@ const RelatedCard = ({ v }: { v: YouTubeVideo }) => (
         className="w-full aspect-video object-cover group-hover:scale-105 transition-transform duration-300"
         loading="lazy"
       />
-      <span className="absolute bottom-1 right-1 bg-black/80 text-white text-[10px] font-medium px-1 py-0.5 rounded">
+      <span className="absolute bottom-1 right-1 text-white text-[10px] font-medium px-1 py-0.5 rounded"
+        style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
+      >
         {v.duration}
       </span>
     </div>
@@ -90,18 +92,20 @@ const Watch = () => {
     setDisliked(false);
     setSaved(false);
 
-    Promise.all([getVideoDetails(videoId), getPopularVideos(15)]).then(
-      async ([details, popular]) => {
-        setVideo(details);
-        setRelatedVideos(popular.videos.filter((v) => v.id !== videoId));
-        setLoading(false);
-        if (details && user) {
-          await addToHistory(details, user.id);
-          const alreadyLiked = await isVideoLiked(videoId, user.id);
-          setLiked(alreadyLiked);
-        }
+    getVideoDetails(videoId).then(async (details) => {
+      setVideo(details);
+      setLoading(false);
+      if (details && user) {
+        await addToHistory(details, user.id);
+        const alreadyLiked = await isVideoLiked(videoId, user.id);
+        setLiked(alreadyLiked);
       }
-    );
+      // Fetch videos related to this specific video using its title as a search seed
+      const related = details
+        ? await getRelatedVideos(details, 15)
+        : await getPopularVideos(15);
+      setRelatedVideos(related.videos.filter((v) => v.id !== videoId));
+    });
   }, [videoId, user]);
 
   const handleLike = async () => {
@@ -141,7 +145,7 @@ const Watch = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen">
         <Header
           onMenuClick={() => setSidebarOpen((o) => !o)}
           searchQuery={searchQuery}
@@ -160,7 +164,7 @@ const Watch = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <Header
         onMenuClick={() => setSidebarOpen((o) => !o)}
         searchQuery={searchQuery}
@@ -301,7 +305,14 @@ const Watch = () => {
 
                 {/* Description */}
                 <div
-                  className="mt-4 bg-secondary hover:bg-accent/60 rounded-xl p-4 cursor-pointer transition-colors"
+                  className="mt-4 rounded-2xl p-4 cursor-pointer transition-all hover:scale-[1.005]"
+                  style={{
+                    background: "rgba(255,255,255,0.05)",
+                    backdropFilter: "blur(20px) saturate(160%)",
+                    WebkitBackdropFilter: "blur(20px) saturate(160%)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    boxShadow: "0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.07)",
+                  }}
                   onClick={() => setDescExpanded(!descExpanded)}
                 >
                   <div className="flex items-center gap-3 text-sm font-medium mb-1">

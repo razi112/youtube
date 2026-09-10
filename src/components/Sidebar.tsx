@@ -77,7 +77,14 @@ const Sidebar = ({ isOpen, activeSection, onSectionChange }: SidebarProps) => {
 
   if (!isOpen) {
     return (
-      <aside className="fixed left-0 top-14 bottom-0 w-[72px] bg-background overflow-y-auto scrollbar-hide py-2 hidden md:block z-40">
+      <aside className="fixed left-0 top-14 bottom-0 w-[72px] overflow-y-auto scrollbar-hide py-2 hidden md:block z-40"
+        style={{
+          background: "rgba(10, 9, 20, 0.5)",
+          backdropFilter: "blur(24px) saturate(180%)",
+          WebkitBackdropFilter: "blur(24px) saturate(180%)",
+          borderRight: "1px solid rgba(255,255,255,0.07)",
+        }}
+      >
         {mainItems.map((item) => (
           <button
             key={item.label}
@@ -102,7 +109,15 @@ const Sidebar = ({ isOpen, activeSection, onSectionChange }: SidebarProps) => {
   }
 
   return (
-    <aside className="fixed left-0 top-14 bottom-0 w-60 bg-background overflow-y-auto scrollbar-hide py-3 px-3 hidden md:block z-40">
+    <aside className="fixed left-0 top-14 bottom-0 w-60 overflow-y-auto scrollbar-hide py-3 px-3 hidden md:block z-40"
+      style={{
+        background: "rgba(10, 9, 20, 0.55)",
+        backdropFilter: "blur(28px) saturate(200%)",
+        WebkitBackdropFilter: "blur(28px) saturate(200%)",
+        borderRight: "1px solid rgba(255,255,255,0.08)",
+        boxShadow: "4px 0 24px rgba(0,0,0,0.35)",
+      }}
+    >
       {/* Main */}
       <div className="mb-3">
         {mainItems.map((item) => (

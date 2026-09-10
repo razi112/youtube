@@ -44,7 +44,15 @@ const BottomNav = ({ activeSection, onSectionChange }: BottomNavProps) => {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border md:hidden safe-area-inset-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden safe-area-inset-bottom"
+      style={{
+        background: "rgba(10, 9, 20, 0.6)",
+        backdropFilter: "blur(24px) saturate(180%)",
+        WebkitBackdropFilter: "blur(24px) saturate(180%)",
+        borderTop: "1px solid rgba(255,255,255,0.09)",
+        boxShadow: "0 -4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
+      }}
+    >
       <div className="flex items-center justify-around py-1 pb-safe">
         {navItems.map((item) => {
           const isActive =

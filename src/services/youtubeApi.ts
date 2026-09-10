@@ -11,6 +11,8 @@ export interface YouTubeVideo {
   uploadedAt: string;
   duration: string;
   durationSeconds?: number;
+  isLive?: boolean;
+  liveBroadcastContent?: "live" | "upcoming" | "none";
 }
 
 export interface PaginatedResult {
@@ -23,6 +25,7 @@ interface YouTubeSearchItem {
   id: { videoId: string };
   snippet: {
     title: string; channelId: string; channelTitle: string; publishedAt: string;
+    liveBroadcastContent?: "live" | "upcoming" | "none";
     thumbnails: { high?: { url: string }; medium?: { url: string }; default?: { url: string } };
   };
 }
@@ -31,6 +34,7 @@ interface YouTubeVideoItem {
   id: string;
   snippet: {
     title: string; channelId: string; channelTitle: string; publishedAt: string;
+    liveBroadcastContent?: "live" | "upcoming" | "none";
     thumbnails: { high?: { url: string }; medium?: { url: string }; default?: { url: string } };
   };
   statistics?: { viewCount?: string };
@@ -203,6 +207,8 @@ export const searchYouTubeVideos = async (
     videos: items.map((item) => {
       const det = detailsMap.get(item.id.videoId);
       const raw = det?.contentDetails?.duration ?? "PT0S";
+      const lbc = item.snippet.liveBroadcastContent;
+      const isLive = lbc === "live";
       return {
         id: item.id.videoId,
         thumbnail: bestThumb(item.snippet.thumbnails, item.id.videoId),
@@ -210,8 +216,10 @@ export const searchYouTubeVideos = async (
         channel: { id: item.snippet.channelId, name: item.snippet.channelTitle, avatar: avatarMap.get(item.snippet.channelId) || "" },
         views: formatViewCount(det?.statistics?.viewCount),
         uploadedAt: formatUploadDate(item.snippet.publishedAt),
-        duration: formatDuration(raw),
-        durationSeconds: parseDurationSeconds(raw),
+        duration: isLive ? "" : formatDuration(raw),
+        durationSeconds: isLive ? undefined : parseDurationSeconds(raw),
+        isLive,
+        liveBroadcastContent: lbc ?? "none",
       };
     }),
     nextPageToken: d.nextPageToken,
@@ -240,6 +248,8 @@ export const getPopularVideos = async (
   return {
     videos: d.items.map((item) => {
       const raw = item.contentDetails?.duration ?? "PT0S";
+      const lbc = item.snippet.liveBroadcastContent;
+      const isLive = lbc === "live";
       return {
         id: item.id,
         thumbnail: bestThumb(item.snippet.thumbnails, item.id),
@@ -247,8 +257,10 @@ export const getPopularVideos = async (
         channel: { id: item.snippet.channelId, name: item.snippet.channelTitle, avatar: avatarMap.get(item.snippet.channelId) || "" },
         views: formatViewCount(item.statistics?.viewCount),
         uploadedAt: formatUploadDate(item.snippet.publishedAt),
-        duration: formatDuration(raw),
-        durationSeconds: parseDurationSeconds(raw),
+        duration: isLive ? "" : formatDuration(raw),
+        durationSeconds: isLive ? undefined : parseDurationSeconds(raw),
+        isLive,
+        liveBroadcastContent: lbc ?? "none",
       };
     }),
     nextPageToken: d.nextPageToken,
@@ -326,7 +338,110 @@ export const getVideoDetails = async (videoId: string): Promise<YouTubeVideo | n
   };
 };
 
-// ─── Comments ─────────────────────────────────────────────────────────────────
+export const getRelatedVideos = async (
+  video: YouTubeVideo,
+  maxResults = 15
+): Promise<PaginatedResult> => {
+  // Build a query from the video title — strip common filler words and take the
+  // first ~6 meaningful tokens so the search stays focused.
+  const stopWords = new Set(["the","a","an","and","or","in","on","at","to","of","for","is","are","was","were","be","been","being","with","by","from","as","this","that","it","its","i","my","we","our","you","your"]);
+  const titleTokens = video.title
+    .replace(/[^a-zA-Z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !stopWords.has(w.toLowerCase()))
+    .slice(0, 6);
+
+  const query = titleTokens.length >= 2
+    ? titleTokens.join(" ")
+    : video.channel.name;
+
+  const { data, error } = await apiFetch(
+    (k) =>
+      `${YOUTUBE_API_BASE_URL}/search?part=snippet&type=video` +
+      `&maxResults=${maxResults + 2}` +
+      `&q=${encodeURIComponent(query)}` +
+      `&relevanceLanguage=en` +
+      `&key=${k}`
+  );
+
+  if (error) {
+    console.error("[youtubeApi] relatedVideos:", error);
+    // Fallback to channel search
+    return searchYouTubeVideos(video.channel.name, maxResults);
+  }
+
+  const d = data as { items?: YouTubeSearchItem[]; nextPageToken?: string };
+  const items = (d.items ?? []).filter((i) => i.id.videoId !== video.id).slice(0, maxResults);
+  if (!items.length) return searchYouTubeVideos(video.channel.name, maxResults);
+
+  const [detailsMap, avatarMap] = await Promise.all([
+    fetchVideoDetails(items.map((i) => i.id.videoId)),
+    fetchChannelAvatars(items.map((i) => i.snippet.channelId)),
+  ]);
+
+  return {
+    videos: items.map((item) => {
+      const det = detailsMap.get(item.id.videoId);
+      const raw = det?.contentDetails?.duration ?? "PT0S";
+      const lbc = item.snippet.liveBroadcastContent;
+      const isLive = lbc === "live";
+      return {
+        id: item.id.videoId,
+        thumbnail: bestThumb(item.snippet.thumbnails, item.id.videoId),
+        title: item.snippet.title,
+        channel: { id: item.snippet.channelId, name: item.snippet.channelTitle, avatar: avatarMap.get(item.snippet.channelId) || "" },
+        views: formatViewCount(det?.statistics?.viewCount),
+        uploadedAt: formatUploadDate(item.snippet.publishedAt),
+        duration: isLive ? "" : formatDuration(raw),
+        durationSeconds: isLive ? undefined : parseDurationSeconds(raw),
+        isLive,
+        liveBroadcastContent: lbc ?? "none",
+      };
+    }),
+    nextPageToken: d.nextPageToken,
+  };
+};
+
+export const getLiveStreams = async (
+  query = "", maxResults = 16, pageToken?: string
+): Promise<PaginatedResult> => {
+  const { data, error } = await apiFetch(
+    (k) =>
+      `${YOUTUBE_API_BASE_URL}/search?part=snippet&type=video&eventType=live` +
+      `&maxResults=${maxResults}&q=${encodeURIComponent(query || "live")}` +
+      `&key=${k}` + (pageToken ? `&pageToken=${pageToken}` : "")
+  );
+
+  if (error) { console.error("[youtubeApi] liveStreams:", error); return { videos: [], error }; }
+
+  const d = data as { items?: YouTubeSearchItem[]; nextPageToken?: string };
+  const items = d.items ?? [];
+  if (!items.length) return { videos: [], nextPageToken: undefined };
+
+  const avatarMap = await fetchChannelAvatars(items.map((i) => i.snippet.channelId));
+
+  return {
+    videos: items.map((item) => ({
+      id: item.id.videoId,
+      thumbnail: bestThumb(item.snippet.thumbnails, item.id.videoId),
+      title: item.snippet.title,
+      channel: {
+        id: item.snippet.channelId,
+        name: item.snippet.channelTitle,
+        avatar: avatarMap.get(item.snippet.channelId) || "",
+      },
+      views: "LIVE",
+      uploadedAt: formatUploadDate(item.snippet.publishedAt),
+      duration: "",
+      durationSeconds: undefined,
+      isLive: true,
+      liveBroadcastContent: "live" as const,
+    })),
+    nextPageToken: d.nextPageToken,
+  };
+};
+
+
 
 export interface YouTubeComment {
   id: string;

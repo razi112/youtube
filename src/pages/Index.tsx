@@ -7,7 +7,7 @@ import BottomNav from "@/components/BottomNav";
 import SectionPage from "@/pages/SectionPage";
 import SignInModal from "@/components/SignInModal";
 import ClipsShelf from "@/components/ClipsShelf";
-import { getPopularVideos, searchYouTubeVideos, YouTubeVideo } from "@/services/youtubeApi";
+import { getPopularVideos, searchYouTubeVideos, getLiveStreams, YouTubeVideo } from "@/services/youtubeApi";
 import { Loader2 } from "lucide-react";
 
 // Sections that show a dedicated page instead of the video grid
@@ -58,6 +58,10 @@ const Index = () => {
 
   const fetchVideos = useCallback(
     async (section: string, category: string, search: string, token?: string) => {
+      // Live section or Live category chip → use eventType=live API
+      if (!search.trim() && (section === "Live" || category === "Live")) {
+        return getLiveStreams("", 16, token);
+      }
       const query = getEffectiveQuery(section, category, search);
       if (query === "") return getPopularVideos(16, token);
       return searchYouTubeVideos(query, 16, token);
@@ -141,7 +145,7 @@ const Index = () => {
   const showUserSection = isUserSection(activeSection) && !searchQuery;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <Header
         onMenuClick={() => setSidebarOpen(!sidebarOpen)}
         searchQuery={searchQuery}
